@@ -139,7 +139,6 @@ using StatsPlots
 
 histogram(mpg, size=(800, 600), linewidth=2, legend=false)
 
-# \figalt{Simple plot}{ISL-lab-2-mpg.svg}
 
 
 

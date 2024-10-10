@@ -96,8 +96,6 @@ xlabel!("Number of PCA features")
 ylabel!("Ratio of explained variance")
 plot!(1:length(cs), cs, color="red", marker="o", linewidth=3)
 
-# \figalt{PCA explained variance}{ISL-lab-10-g1.svg}
-
 # So 4 PCA features are enough to recover most of the variance.
 
 

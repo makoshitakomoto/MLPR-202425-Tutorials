@@ -43,7 +43,6 @@ plot(X.Volume, size=(800,600), linewidth=2, legend=false)
 xlabel!("Tick number")
 ylabel!("Volume")
 
-# \figalt{volume}{ISL-lab-4-volume.svg}
 
 
 # ### Logistic Regression
@@ -300,8 +299,6 @@ fprs, tprs, thresholds = roc_curve(ŷ, y[test])
 plot(fprs, tprs, linewidth=2, size=(800,600))
 xlabel!("False Positive Rate")
 ylabel!("True Positive Rate")
-
-# \figalt{ROC}{ISL-lab-4-roc.svg}
 
 
 
