@@ -4,7 +4,6 @@ using MLJ
 import RDatasets: dataset
 using PrettyPrinting
 import DataFrames: DataFrame, select, Not
-DTC = @load DecisionTreeClassifier pkg = DecisionTree
 
 carseats = dataset("ISLR", "Carseats")
 
@@ -25,7 +24,9 @@ hold_out_test_y = High[hold_out_test]
 
 # ### Decision Tree Classifier
 
+DTC = @load DecisionTreeClassifier pkg = DecisionTree
 
+scitype(train_validate_X)
 HotTreeClf = OneHotEncoder() |> DTC()
 
 mdl = HotTreeClf
@@ -39,6 +40,7 @@ cv = StratifiedCV(nfolds=10; rng=112)
 # Note also that the machine `mach` is trained on the whole data.
 ypred = predict_mode(mach, train_validate_X)
 misclassification_rate(ypred, train_validate_y)
+accuracy(ypred, train_validate_y)
 
 # That's right... it gets it perfectly; this tends to be classic behaviour for a DTC to overfit the data it's trained on.
 # Let's see if it generalises:
@@ -55,6 +57,8 @@ r_msl = range(mdl, :(decision_tree_classifier.min_samples_leaf), lower=1, upper=
 
 HotTreeClf = OneHotEncoder() |> DTC()
 mdl = HotTreeClf
+
+cv = StratifiedCV(nfolds=10; rng=112)
 tm = TunedModel(
     model=mdl,
     ranges=[r_mpi, r_msl],
@@ -78,11 +82,11 @@ mcc_tuned_dt = mcc(ypred, hold_out_test_y)
 
 fitted_params(mtm).best_model.decision_tree_classifier
 
-models("MLJText")
+@show models("CatBoost")
 
-models(x -> x.is_supervised && x.is_pure_julia)    #lists all supervised models written in pure julia.
+models(x -> x.is_supervised && x.is_pure_julia)  #lists all supervised models written in pure julia.
 
-models(matching(train_validate_X))    #lists all unsupervised models compatible with input X.
+models(matching(train_validate_X))  #lists all unsupervised models compatible with input X.
 
 models(matching(train_validate_X, train_validate_y))   # lists all supervised models compatible with input/target X/y.
 
@@ -92,4 +96,22 @@ models() do model
         model.is_pure_julia
 end
 
-measures("rsquared")
+measures("f1")
+
+
+# Using CatBoost
+
+using CatBoost.MLJCatBoostInterface
+CB = @load CatBoostClassifier pkg = CatBoost
+
+# scitype(train_validate_X)
+cb_mdl = OneHotEncoder() |> CB()
+cb = machine(cb_mdl, train_validate_X, train_validate_y)
+fit!(cb)
+
+ypred = MLJ.predict_mode(cb, hold_out_test_X)
+perf_cb = misclassification_rate(ypred, hold_out_test_y)
+mcc_cb = mcc(ypred, hold_out_test_y)
+
+@show perf_dt, perf_tuned_dt, perf_cb
+@show mcc_dt, mcc_tuned_dt, mcc_cb

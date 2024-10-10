@@ -14,9 +14,23 @@ data_for_clustering/
 #Storage
 *.bin
 *.jls
+
+*.pyi
+*.pyc
+*.py
+*.h
 # Editors
 .vscode/
 .idea/
+
+catboost_info/
+./../.CondaPkg/
+.CondaPkg/
+CondaPkg.toml
+.CondaPkg/
+.CondaPkg/meta
+.CondaPkg/env/
+*.json
 
 # Mac/OSX
 .DS_Store

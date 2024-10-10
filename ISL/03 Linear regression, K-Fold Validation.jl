@@ -112,7 +112,7 @@ cases = [[Symbol("x$j") for j in 1:i] for i in 1:10]
 r = range(LinMod, :(feature_selector.features), values=cases)
 
 tm = TunedModel(model=LinMod, ranges=r, resampling=CV(nfolds=10), measure=rms)
-
+#train + test => give you 10 splits of train+test
 # Now we're left with fitting the tuned model
 
 mtm = machine(tm, Xhp, y)
