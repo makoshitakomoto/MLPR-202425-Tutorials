@@ -93,3 +93,8 @@ venv.bak/
 
 # mkdocs documentation
 /site
+
+/LLM
+*.DS_Store
+/data
+*.spacy

@@ -1,5 +1,0 @@
-#!/Users/456828/Projects/MLPR 202425 Tutorials/.CondaPkg/env/bin/python3.11
-
-import pydoc
-if __name__ == '__main__':
-    pydoc.cli()

@@ -1,13 +1,10 @@
-
-
 # ## Getting started
-
-
 
 using MLJ
 import RDatasets: dataset
 import DataFrames: DataFrame, select, Not, describe
 using Random
+using StatsPlots
 
 data = dataset("datasets", "USArrests")
 names(data)
@@ -19,17 +16,15 @@ describe(data, :mean, :std)
 # Let's extract the numerical component and coerce
 
 X = select(data, Not(:State))
-X = coerce(X, :UrbanPop=>Continuous, :Assault=>Continuous);
+X = coerce(X, :UrbanPop => Continuous, :Assault => Continuous);
 
 
 
 # ## PCA pipeline
-
-
 #
 # PCA is usually best done after standardization but we won't do it here:
 
-PCA = @load PCA pkg=MultivariateStats
+PCA = @load PCA pkg = MultivariateStats
 
 pca_mdl = PCA(variance_ratio=1)
 pca = machine(pca_mdl, X)
@@ -37,7 +32,7 @@ fit!(pca)
 PCA
 W = MLJ.transform(pca, X);
 
-# W is the PCA'd data; here we've used default settings for PCA and it has recovered 2 components:
+# W is the PCA'd data; here we've used default settings for PCA:
 
 schema(W).names
 
@@ -49,10 +44,7 @@ cumsum(r.principalvars ./ r.tvar)
 # In the second line we look at the explained variance with 1 then 2 PCA features and it seems that with 2 we almost completely recover all of the variance.
 
 
-
 # ## More interesting data...
-
-
 
 # Instead of just playing with toy data, let's load the orange juice data and extract only the columns corresponding to price data:
 
@@ -64,8 +56,10 @@ feature_names = [
 ]
 
 X = select(data, feature_names);
+y = select(data, :Purchase)
 
-
+using StatsBase
+countmap(y.Purchase)
 # ### PCA pipeline
 
 
@@ -74,7 +68,7 @@ Random.seed!(1515)
 
 SPCA = Pipeline(
     Standardizer(),
-    PCA(variance_ratio=1-1e-4)
+    PCA(variance_ratio=1 - 1e-4)
 )
 
 spca = machine(SPCA, X)
@@ -87,11 +81,12 @@ names(W)
 rpca = report(spca).pca
 cs = cumsum(rpca.principalvars ./ rpca.tvar)
 
+
 # Let's visualise this
 
 using Plots
 
-Plots.bar(1:length(cs), cs, legend=false, size=((800,600)), ylim=(0, 1.1))
+Plots.bar(1:length(cs), cs, legend=false, size=((800, 600)), ylim=(0, 1.1))
 xlabel!("Number of PCA features")
 ylabel!("Ratio of explained variance")
 plot!(1:length(cs), cs, color="red", marker="o", linewidth=3)
@@ -99,44 +94,4 @@ plot!(1:length(cs), cs, color="red", marker="o", linewidth=3)
 # So 4 PCA features are enough to recover most of the variance.
 
 
-
-# ### Clustering
-
-
-
-Random.seed!(1515)
-
-KMeans = @load KMeans pkg=Clustering
-SPCA2 = Pipeline(
-    Standardizer(),
-    PCA(),
-    KMeans(k=3)
-)
-
-spca2 = machine(SPCA2, X)
-fit!(spca2)
-
-
-assignments = report(spca2).k_means.assignments
-mask1 = assignments .== 1
-mask2 = assignments .== 2
-mask3 = assignments .== 3;
-
-# Now we can  try visualising this
-
-p = plot(size=(800,600))
-legend_items = ["Group 1", "Group 2", "Group 3"]
-for (i, (m, c)) in enumerate(zip((mask1, mask2, mask3), ("red", "green", "blue")))
-    scatter!(p, W[m, 1], W[m, 2], color=c, label=legend_items[i])
-end
-plot(p)
-xlabel!("PCA-1")
-ylabel!("PCA-2")
-
-# \fig{ISL-lab-10-cluster.svg}
-
-
-
-
-
-
+### Test the performance using LogisticClassifier and comapre the performance on PCA features and the original feature. The difference will in the efficiency.
