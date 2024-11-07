@@ -1,11 +1,14 @@
-using Distributions
-using Random
-Random.seed!(12); # Set seed for reproducibility
-using StatsPlots
+
+begin
+	using Distributions
+	using Random
+	Random.seed!(12) # Set seed for reproducibility
+	using StatsPlots
+end
 
 ### Make Synthetic Experimental data
 p_true = 0.7
-N = 100
+N = 10
 data = rand(Bernoulli(p_true), N)
 
 ### Inference
@@ -14,6 +17,7 @@ using Turing
 
 plot(Beta(1, 1), label = "Beta Dist")
 plot!(Uniform(0, 1), label = "Uniform Dist")
+
 # Unconditioned coinflip model with `N` observations.
 @model function coinflip(; N::Int)
 	# Our prior belief about the probability of heads in a coin toss.
@@ -33,7 +37,7 @@ coinflip(y::AbstractVector{<:Real}) = coinflip(; N = length(y)) | (; y)
 model = coinflip(data)
 sampler = NUTS(; adtype = AutoReverseDiff(compile = true))
 
-chain = sample(model, sampler, 1000, progress = false)
+chain = Turing.sample(model, sampler, 2000, progress = false)
 histogram(chain)
 
 # Visualize a blue density plot of the approximate posterior distribution using HMC (see Chain 1 in the legend).

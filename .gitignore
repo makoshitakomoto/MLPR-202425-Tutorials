@@ -98,3 +98,4 @@ venv.bak/
 *.DS_Store
 /data
 *.spacy
+/mnist
