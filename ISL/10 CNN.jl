@@ -1,8 +1,8 @@
 # Classification of MNIST dataset using a convolutional network,
 # which is a variant of the original LeNet from 1998.
 
-using MLDatasets, Flux, JLD2
-using CSV, DataFrames
+using MLDatasets, Flux, JLD2, StatsPlots
+using CSV, DataFrames, Statistics
 
 folder = "mnist"  # sub-directory in which to save
 isdir(folder) || mkdir(folder)
@@ -52,79 +52,6 @@ lenet = Chain(
 	Dense(84 => 10),
 )
 
-#===== METRICS =====#
-
-# We're going to log accuracy and loss during training. There's no advantage to
-# calculating these on minibatches, since MNIST is small enough to do it at once.
-
-using Statistics: mean  # standard library
-
-function loss_and_accuracy(model, data)
-	(x, y) = only(loader(data; batchsize = size(data, 1)))  # make one big batch
-	ŷ = model(x)
-	loss = Flux.logitcrossentropy(ŷ, y)  # did not include softmax in the model
-	acc = round(100 * mean(Flux.onecold(ŷ) .== Flux.onecold(y)); digits = 2)
-	return loss, acc
-end
-
-@show loss_and_accuracy(lenet, test_data)  # accuracy about 10%, before training
-
-#===== LOADING TRAINED MODEL (SKIP THIS IF WANT TO TRAIN ANEW)=====#
-
-# During training, the code above saves the model state to disk. Load the last version:
-
-loaded_state = JLD2.load(filename, "lenet_state");
-
-# Now you would normally re-create the model, and copy all parameters into that.
-# We can use lenet2 from just above:
-
-Flux.loadmodel!(lenet, loaded_state)
-
-#===== TRAINING =====#
-
-# Let's collect some hyper-parameters in a NamedTuple, just to write them in one place.
-# Global variables are fine -- we won't access this from inside any fast loops.
-
-settings = (;
-	eta = 3e-4,     # learning rate
-	lambda = 1e-2,  # for weight decay
-	batchsize = 64,
-	epochs = 10,
-)
-train_log = []
-
-# Initialise the storage needed for the optimiser:
-
-opt_rule = OptimiserChain(WeightDecay(settings.lambda), AdaBelief())
-opt_state = Flux.setup(opt_rule, lenet)
-
-for epoch in 1:settings.epochs
-	# @time will show a much longer time for the first epoch, due to compilation
-	@time for (x, y) in train_data_loader
-		grads = Flux.gradient(m -> Flux.logitcrossentropy(m(x), y), lenet)
-		Flux.update!(opt_state, lenet, grads[1])
-	end
-
-	# Logging & saving, but not on every epoch
-	if epoch % 2 == 1
-		loss, acc = loss_and_accuracy(lenet, train_data)
-		test_loss, test_acc = loss_and_accuracy(lenet, test_data)
-		@info "logging:" epoch acc test_acc
-		nt = (; epoch, loss, acc, test_loss, test_acc)  # make a NamedTuple
-		push!(train_log, nt)
-	end
-	if epoch % 5 == 0
-		JLD2.jldsave(filename; lenet_state = Flux.state(lenet))
-		println("saved to ", filename, " after ", epoch, " epochs")
-	end
-end
-
-@show train_log
-
-# We can re-run the quick sanity-check of predictions:
-y1hat = softmax(lenet(x1))
-@show hcat(Flux.onecold(y1hat, 0:9), Flux.onecold(y1, 0:9))
-
 #===== ARRAY SIZES =====#
 
 # A layer like Conv((5, 5), 1=>6) takes 5x5 patches of an image, and matches them to each
@@ -158,5 +85,79 @@ julia> lenet[1:5](x1) |> size  # after Flux.flatten
 
 # Flux.flatten is just reshape, preserving the batch dimesion (64) while combining others (4*4*16).
 # This 256 must match the Dense(256 => 120). Here is how to automate this, with Flux.outputsize:
+
+#===== METRICS =====#
+
+# We're going to log accuracy and loss during training. There's no advantage to
+# calculating these on minibatches, since MNIST is small enough to do it at once.
+
+using Statistics: mean  # standard library
+
+function loss_and_accuracy(model, data)
+	(x, y) = only(loader(data; batchsize = size(data, 1)))  # make one big batch
+	ŷ = model(x)
+	loss = Flux.logitcrossentropy(ŷ, y)  # did not include softmax in the model
+	acc = round(100 * mean(Flux.onecold(ŷ) .== Flux.onecold(y)); digits = 2)
+	return loss, acc
+end
+
+@show loss_and_accuracy(lenet, test_data)  # accuracy about 10%, before training
+
+#===== LOADING TRAINED MODEL (SKIP THIS IF WANT TO TRAIN ANEW)=====#
+
+# During training, the code above saves the model state to disk. Load the last version:
+
+loaded_state = JLD2.load(filename, "lenet_state")
+
+# Now you would normally re-create the model, and copy all parameters into that.
+# We can use lenet2 from just above:
+
+Flux.loadmodel!(lenet, loaded_state)
+
+#===== TRAINING =====#
+
+# Let's collect some hyper-parameters in a NamedTuple, just to write them in one place.
+# Global variables are fine -- we won't access this from inside any fast loops.
+
+settings = (;
+	eta = 3e-4,     # learning rate
+	lambda = 1e-2,  # for weight decay
+	batchsize = 64,
+	epochs = 10,
+)
+train_log = []
+
+# Initialise the storage needed for the optimiser:
+
+opt_rule = OptimiserChain(WeightDecay(settings.lambda), AdaBelief())
+opt_state = Flux.setup(opt_rule, lenet)
+least_loss = Inf
+last_improvement = 1
+for epoch in 1:settings.epochs
+	# @time will show a much longer time for the first epoch, due to compilation
+	@time for (x, y) in train_data_loader
+		grads = Flux.gradient(m -> Flux.logitcrossentropy(m(x), y), lenet)
+		Flux.update!(opt_state, lenet, grads[1])
+	end
+
+	# Logging & saving, but not on every epoch
+	if epoch % 2 == 1
+		loss, acc = loss_and_accuracy(lenet, train_data)
+		test_loss, test_acc = loss_and_accuracy(lenet, test_data)
+		@info "logging:" epoch acc test_acc
+		nt = (; epoch, loss, acc, test_loss, test_acc)  # make a NamedTuple
+		push!(train_log, nt)
+	end
+	if epoch % 5 == 0
+		JLD2.jldsave(filename; lenet_state = Flux.state(lenet))
+		println("saved to ", filename, " after ", epoch, " epochs")
+	end
+end
+
+@show train_log
+
+# We can re-run the quick sanity-check of predictions:
+y1hat = softmax(lenet(x1))
+@show hcat(Flux.onecold(y1hat, 0:9), Flux.onecold(y1, 0:9))
 
 #===== THE END =====#

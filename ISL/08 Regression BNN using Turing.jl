@@ -37,21 +37,22 @@ lp, maxInd = findmax(chain[:lp])
 
 params, internals = chain.name_map
 bestParams = map(x -> chain[x].data[maxInd], params[1:6])
-plot(xTrain, cos.(xTrain), seriestype = :line, label = "True")
 nn = re(bestParams)
 ŷ = nn(permutedims(xTrain))
-plot!(xTrain, permutedims(ŷ), seriestype = :scatter, label = "MAP Estimate")
 
 xPlot = sort(xTrain)
 
-sp = plot()
+begin
+	sp = plot()
+	for i in max(1, (maxInd[1] - 100)):min(N, (maxInd[1] + 100))
+		paramSample = map(x -> chain[x].data[i], params[1:6])
+		nn = re(paramSample)
+		plot!(sp, xPlot, Array(nn(permutedims(xPlot))'), label = :none, colour = "lightblue")
+	end
 
-for i in max(1, (maxInd[1] - 100)):min(N, (maxInd[1] + 100))
-	paramSample = map(x -> chain[x].data[i], params[1:6])
-	nn = re(paramSample)
-	plot!(sp, xPlot, Array(nn(permutedims(xPlot))'), label = :none, colour = "blue")
+	plot!(xTrain, cos.(xTrain), seriestype = :line, label = "True", colour = "green", linewidth = 2)
+	plot!(xTrain, permutedims(ŷ), seriestype = :line, label = "MAP Estimate", colour = "orange", linewidth = 2)
+	plot!(sp, xTrain, yTrain, seriestype = :scatter, label = "Training Data", colour = "yellow")
 end
-
-plot!(sp, xTrain, yTrain, seriestype = :scatter, label = "Training Data", colour = "red")
 lPlot = plot(chain[:lp], label = "Chain", title = "Log Posterior")
 sigPlot = plot(chain[:sigma], label = "Chain", title = "Variance")

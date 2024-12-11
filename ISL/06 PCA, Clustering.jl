@@ -26,7 +26,7 @@ X = coerce(X, :UrbanPop => Continuous, :Assault => Continuous);
 
 PCA = @load PCA pkg = MultivariateStats
 
-pca_mdl = PCA(variance_ratio=1)
+pca_mdl = PCA(variance_ratio = 1)
 pca = machine(pca_mdl, X)
 fit!(pca)
 PCA
@@ -51,8 +51,8 @@ cumsum(r.principalvars ./ r.tvar)
 data = dataset("ISLR", "OJ")
 
 feature_names = [
-    :PriceCH, :PriceMM, :DiscCH, :DiscMM, :SalePriceMM, :SalePriceCH,
-    :PriceDiff, :PctDiscMM, :PctDiscCH
+	:PriceCH, :PriceMM, :DiscCH, :DiscMM, :SalePriceMM, :SalePriceCH,
+	:PriceDiff, :PctDiscMM, :PctDiscCH,
 ]
 
 X = select(data, feature_names);
@@ -67,8 +67,8 @@ countmap(y.Purchase)
 Random.seed!(1515)
 
 SPCA = Pipeline(
-    Standardizer(),
-    PCA(variance_ratio=1 - 1e-4)
+	Standardizer(),
+	PCA(variance_ratio = 1 - 1e-4),
 )
 
 spca = machine(SPCA, X)
@@ -85,12 +85,12 @@ cs = cumsum(rpca.principalvars ./ rpca.tvar)
 # Let's visualise this
 
 using Plots
-
-Plots.bar(1:length(cs), cs, legend=false, size=((800, 600)), ylim=(0, 1.1))
-xlabel!("Number of PCA features")
-ylabel!("Ratio of explained variance")
-plot!(1:length(cs), cs, color="red", marker="o", linewidth=3)
-
+begin
+	Plots.bar(1:length(cs), cs, legend = false, size = ((800, 600)), ylim = (0, 1.1))
+	xlabel!("Number of PCA features")
+	ylabel!("Ratio of explained variance")
+	plot!(1:length(cs), cs, color = "red", marker = "o", linewidth = 3)
+end
 # So 4 PCA features are enough to recover most of the variance.
 
 
