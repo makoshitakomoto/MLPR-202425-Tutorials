@@ -1,8 +1,6 @@
 
 # ## Simple linear regression
 
-
-#
 # `MLJ` essentially serves as a unified path to many existing Julia packages each of which provides their own functionalities and models, with their own conventions.
 #
 # The simple linear regression demonstrates this.
@@ -11,8 +9,18 @@
 # To load the model from a given package use `@load ModelName pkg=PackageName`
 
 using MLJ
+models()
 
-LinearRegressor = @load LinearRegressor pkg=MLJLinearModels
+filter(model) = model.is_pure_julia && model.is_supervised && model.prediction_type == :probabilistic
+models(filter)
+models("XGB")
+measures("F1")
+
+mdls = models(matching(X, y))
+
+# Linear regression
+
+LR = @load LinearRegressor pkg = MLJLinearModels
 
 # Note: in order to be able to load this, you **must** have the relevant package in your environment, if you don't, you can always add it (``using Pkg; Pkg.add("MLJLinearModels")``).
 #
@@ -20,8 +28,8 @@ LinearRegressor = @load LinearRegressor pkg=MLJLinearModels
 
 import RDatasets: dataset
 import DataFrames: describe, select, Not, rename!
-boston = dataset("MASS", "Boston")
-first(boston, 3)
+data = dataset("MASS", "Boston")
+println(first(data, 3))
 
 # Let's get a feel for the data
 
@@ -32,21 +40,21 @@ first(boston, 3)
 #
 # Here we will just interpret the integer features as continuous as we will just use a basic linear regression:
 
-data = coerce(boston, autotype(boston, :discrete_to_continuous))
+data = coerce(data, autotype(data, :discrete_to_continuous))
 
 # Let's also extract the target variable (`MedV`):
 
 y = data.MedV
-X = select(data, Not(:MedV));
+X = select(data, Not(:MedV))
 
 # Let's declare a simple multivariate linear regression model:
 
-mdl = LinearRegressor()
+model = LR()
 
 # First let's do a very simple univariate regression, in order to fit it on the data, we need to wrap it in a _machine_ which, in MLJ, is the composition of a model and data to apply the model on:
 
 X_uni = select(X, :LStat) # only a single feature
-mach_uni = machine(mdl, X_uni, y)
+mach_uni = machine(model, X_uni, y)
 fit!(mach_uni)
 
 # You can then retrieve the  fitted parameters using `fitted_params`:
@@ -59,15 +67,16 @@ fp = fitted_params(mach_uni)
 
 using Plots
 
-plot(X.LStat, y, seriestype=:scatter, markershape=:circle, legend=false, size=(800,600))
+plot(X.LStat, y, seriestype=:scatter, markershape=:circle, legend=false, size=(800, 600))
 
-Xnew = (LStat = collect(range(extrema(X.LStat)..., length=100)),)
+#  MLJ.predict(mach_uni, Xnew) to predict from a fitted model
+Xnew = (LStat=collect(range(extrema(X.LStat)..., length=100)),)
 plot!(Xnew.LStat, MLJ.predict(mach_uni, Xnew), linewidth=3, color=:orange)
 
 
-# The  multivariate case is very similar
+# The  multivariate linear regression case is very similar
 
-mach = machine(mdl, X, y)
+mach = machine(model, X, y)
 fit!(mach)
 
 fp = fitted_params(mach)
@@ -81,61 +90,58 @@ println("Intercept: $(round(intercept, sigdigits=3))")
 # You can use the `machine` in order to _predict_ values as well and, for instance, compute the root mean squared error:
 
 ŷ = MLJ.predict(mach, X)
-round(rms(ŷ, y), sigdigits=4)
+round(rsquared(ŷ, y), sigdigits=4)
 
 # Let's see what the residuals look like
 
 res = ŷ .- y
-plot(res, line=:stem, linewidth=1, marker=:circle, legend=false, size=((800,600)))
+plot(res, line=:stem, linewidth=1, marker=:circle, legend=false, size=((800, 600)))
 hline!([0], linewidth=2, color=:red)    # add a horizontal line at x=0
-
+mean(y)
 
 # Maybe that a histogram is more appropriate here
 
-histogram(res, normalize=true, size=(800,600), label="residual")
-
-
+histogram(res, normalize=true, size=(800, 600), label="residual")
 
 
 # ## Interaction and transformation
-
-
 #
 # Let's say we want to also consider an interaction term of `lstat` and `age` taken together.
 # To do this, just create a new dataframe with an additional column corresponding to the interaction term:
 
-X2 = hcat(X, X.LStat .* X.Age);
+X2 = hcat(X, X.LStat .* X.Age)
 
 # So here we have a DataFrame with one extra column corresponding to the elementwise products between `:LStat` and `Age`.
 # DataFrame gives this a default name (`:x1`) which we can change:
 
-rename!(X2, :x1 => :interaction);
+rename!(X2, :x1 => :interaction)
 
 # Ok cool, now let's try the linear regression again
 
-mach = machine(mdl, X2, y)
+mach = machine(model, X2, y)
 fit!(mach)
 ŷ = MLJ.predict(mach, X2)
-round(rms(ŷ, y), sigdigits=4)
+round(rsquared(ŷ, y), sigdigits=4)
 
 # We get slightly better results but nothing spectacular.
 #
 # Let's get back to the lab where they consider regressing the target variable on `lstat` and `lstat^2`; again, it's essentially a case of defining the right DataFrame:
 
-X3 = hcat(X.LStat, X.LStat.^2) |> MLJ.table
-mach = machine(mdl, X3, y)
+X3 = DataFrame(hcat(X.LStat, X.LStat .^ 2), [:LStat, :LStat2])
+mach = machine(model, X3, y)
 fit!(mach)
 ŷ = MLJ.predict(mach, X3)
-round(rms(ŷ, y), sigdigits=4)
+round(rsquared(ŷ, y), sigdigits=4)
+
+# fitting y=mx+c to X3 is the same as fitting y=mx2+c to X3.LStat => Polynomial regression
 
 # which again, we can visualise:
 
-Xnew = (LStat = Xnew.LStat, LStat2 = Xnew.LStat.^2)
+Xnew = (LStat=Xnew.LStat, LStat2=Xnew.LStat .^ 2)
 
-plot(X.LStat, y, seriestype=:scatter, markershape=:circle, legend=false, size=(800,600))
+plot(X.LStat, y, seriestype=:scatter, markershape=:circle, legend=false, size=(800, 600))
 plot!(Xnew.LStat, MLJ.predict(mach, Xnew), linewidth=3, color=:orange)
 
 
 
-
-
+# TODO HW : Find the best model by feature selection; best model means highest R²
