@@ -5,10 +5,9 @@ import RDatasets: dataset
 import DataFrames: DataFrame, select
 auto = dataset("ISLR", "Auto")
 y, X = unpack(auto, ==(:MPG))
-train, test = partition(eachindex(y), 0.5, shuffle=true, rng=444);
+train, test = partition(eachindex(y), 0.5, shuffle=true, rng=444)
 
 # Note the use of `rng=` to seed the shuffling of indices so that the results are reproducible.
-
 
 # ### Polynomial regression
 
@@ -139,7 +138,7 @@ end
 
 
 ### Effect of different features
-
+using DataFrames
 LinMod = Pipeline(
     FeatureSelector(features=[:Nmae]),
     LR()
@@ -160,6 +159,11 @@ rep = report(mtm)
 res = rep.plotting
 rep.best_model
 
+best_models_mse_mean = mean(rep.best_history_entry.per_fold[1])^2
+best_models_mse_std = std(rep.best_history_entry.per_fold[1])^2
 
+# The best model is the one that uses all the features.
+
+#HW TODO - find if MSE reduces further if we take and hyperparamaters tune upto 10 powers of each feature!
 
 
