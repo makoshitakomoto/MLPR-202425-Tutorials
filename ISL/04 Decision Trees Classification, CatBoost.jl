@@ -122,3 +122,5 @@ accuracy_cb = accuracy(ypred, hold_out_test_y)
 
 @show misclassification_rate_dt, misclassification_rate_tuned_dt, misclassification_rate_cb
 @show accuracy_dt, accuracy_tuned_dt, accuracy_cb
+
+#HW #TODO - Find which model for your carseats data is best. Given that the model is also probabilistic and written in pure julia.
