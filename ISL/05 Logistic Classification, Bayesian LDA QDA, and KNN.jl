@@ -5,7 +5,6 @@ using MLJ
 import RDatasets: dataset #import does not bring the package and its fucntions in the namespace
 import DataFrames: DataFrame, describe, select, Not
 import StatsBase: countmap, cor, var
-using PrettyPrinting
 
 smarket = dataset("ISLR", "Smarket")
 @show size(smarket)
@@ -26,7 +25,7 @@ X = select(smarket, Not(:Direction))
 
 # We can compute all the pairwise correlations; we use `Matrix` so that the dataframe entries are considered as one matrix of numbers with the same type (otherwise `cor` won't work):
 
-using StatsPlots
+using Plots
 # using Plots: text
 
 function plotter(cr::Matrix{Float64}, cols::Vector{Symbol})::Nothing
@@ -134,14 +133,14 @@ accuracy(ŷ, y[test]) |> r3
 # We can use a trained machine to predict on new data:
 
 Xnew = (Lag1=[1.2, 1.5], Lag2=[1.1, -0.8])
-ŷ = MLJ.predict(classif, Xnew)
-ŷ |> pprint
+ŷ = MLJ.predict_mode(classif, Xnew)
+ŷ |> println
 
 # **Note**: when specifying data, we used a simple `NamedTuple`; we could also have defined a dataframe or any other compatible tabular container.
 # Note also that we retrieved the raw predictions here i.e.: a score for each class; we could have used `predict_mode` or indeed
 
 mode.(ŷ)
-
+#HW - Evaluate your LogisticClassifier using 10-folds
 
 # ### LDA
 

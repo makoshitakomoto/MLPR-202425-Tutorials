@@ -32,9 +32,6 @@ mdl = HotTreeClf
 mach = machine(mdl, train_validate_X, train_validate_y)
 fit!(mach)
 
-cv = StratifiedCV(nfolds=10; shuffle=false, rng=112)
-performance_without_tuning = evaluate!(mach; resampling=cv, measures=[accuracy, fpr, fnr, misclassification_rate], verbosity=1)
-
 # Note `|>` is syntactic sugar for creating a `Pipeline` model from component model instances or model types.
 # Note also that the machine `mach` is trained on the whole data.
 ypred = predict_mode(mach, train_validate_X)
@@ -47,6 +44,9 @@ accuracy(ypred, train_validate_y)
 ypred = predict_mode(mach, hold_out_test_X)
 misclassification_rate_dt = misclassification_rate(ypred, hold_out_test_y)
 accuracy_dt = accuracy(ypred, hold_out_test_y)
+
+cv = StratifiedCV(nfolds=10; shuffle=false, rng=112)
+performance_without_tuning = evaluate!(mach; resampling=cv, measures=[accuracy, fpr, fnr, misclassification_rate], verbosity=1)
 
 # ### Tuning a DTC
 # Let's try to do a bit of tuning
@@ -72,8 +72,6 @@ fit!(mtm)
 rep = report(mtm)
 rep.best_model
 
-performance_upon_tuning = evaluate!(mtm, resampling=cv, measures=[accuracy, fpr, fnr, misclassification_rate], verbosity=0)
-
 ypred = predict_mode(mtm, hold_out_test_X)
 misclassification_rate_tuned_dt = misclassification_rate(ypred, hold_out_test_y)
 accuracy_tuned_dt = accuracy(ypred, hold_out_test_y)
@@ -81,10 +79,15 @@ accuracy_tuned_dt = accuracy(ypred, hold_out_test_y)
 @show misclassification_rate_dt, misclassification_rate_tuned_dt
 @show accuracy_dt, accuracy_tuned_dt
 
+performance_upon_tuning = evaluate!(mtm, resampling=cv, measures=[accuracy, fpr, fnr, misclassification_rate], verbosity=0)
+
 # We can inspect the parameters of the best model
 
 fitted_params(mtm).best_model.decision_tree_classifier
 
+# Further tuning the DT still has not resulted in better generalization, it still overfits. So, Let's try another model.
+
+#However looking at the evaluation report of the tuned and the untuned model, we also notice the standard deviation of the accuracy is higher for the tuned model. This tells us that our CV methodology already indicated to us that the DT is not going to generalize well. A higher standard deviation of the accuracy means that on the new data we can have large deviations in accuracy.
 
 #------------------------------------------------------------
 
