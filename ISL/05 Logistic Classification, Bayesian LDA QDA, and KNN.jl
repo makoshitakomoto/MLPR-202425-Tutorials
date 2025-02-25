@@ -133,14 +133,14 @@ accuracy(ŷ, y[test]) |> r3
 # We can use a trained machine to predict on new data:
 
 Xnew = (Lag1=[1.2, 1.5], Lag2=[1.1, -0.8])
-ŷ = MLJ.predict_mode(classif, Xnew)
+ŷ = MLJ.predict(classif, Xnew)
 ŷ |> println
 
 # **Note**: when specifying data, we used a simple `NamedTuple`; we could also have defined a dataframe or any other compatible tabular container.
 # Note also that we retrieved the raw predictions here i.e.: a score for each class; we could have used `predict_mode` or indeed
 
 mode.(ŷ)
-#HW - Evaluate your LogisticClassifier using 10-folds
+#HW TODO - Evaluate your LogisticClassifier using 10-folds
 
 # ### LDA
 
@@ -167,8 +167,6 @@ ŷ = predict_mode(classif, rows=test)
 accuracy(ŷ, y[test]) |> r3
 
 # ### QDA
-
-
 #
 # Bayesian QDA is available via ScikitLearn:
 
@@ -180,10 +178,23 @@ classif = machine(BayesianQDA(), X3, y)
 fit!(classif, rows=train)
 ŷ = predict_mode(classif, rows=test)
 
-@df X3 density([:Lag1 - :Lag2, :Lag2 - :Lag1])
-@df X3 marginalkde(:Lag1 - :Lag2, :Lag2 - :Lag1)
-accuracy(ŷ, y[test]) |> r3
+using StatsPlots
+begin
+    density(X3.Lag1 - X3.Lag2, label="Lag1 - Lag2", linewidth=2)
+    density!(X3.Lag2 - X3.Lag1, label="Lag2 - Lag1", linewidth=2)
+    xlabel!("Difference")
+    ylabel!("Density")
+    title!("Density Plot of Lag Differences")
+end
 
+begin
+    marginalkde(X3.Lag1 - X3.Lag2, X3.Lag2 - X3.Lag1, label="Marginal KDE", linewidth=2)
+    xlabel!("Lag1 - Lag2")
+    ylabel!("Lag2 - Lag1")
+    title!("KDE Plot of Lag Differences")
+end
+
+accuracy(ŷ, y[test]) |> r3
 
 # ### KNN
 
@@ -192,9 +203,9 @@ accuracy(ŷ, y[test]) |> r3
 KNNClassifier = @load KNNClassifier
 
 knnc = KNNClassifier(K=2)
-classif = machine(knnc, X3, y)
+classif = machine(knnc, X, y)
 fit!(classif, rows=train)
-ŷ = predict_mode(classif, rows=test)
+ŷ = predict_mode(classif)
 accuracy(ŷ, y[test]) |> r3
 
 # Pretty bad... let's try with three neighbors
@@ -206,97 +217,9 @@ accuracy(ŷ, y[test]) |> r3
 
 # A bit better but not hugely so.
 
-knnc.K = 2
+knnc.K = 10
 fit!(classif, rows=train)
 ŷ = predict_mode(classif, rows=test)
 accuracy(ŷ, y[test]) |> r3
 
 #Worse
-
-
-
-# ## Caravan insurance data
-
-# The caravan dataset is part of ISLR as well:
-caravan = dataset("ISLR", "Caravan")
-size(caravan)
-
-# The target variable is `Purchase`, effectively  a categorical
-
-purchase = caravan.Purchase
-vals = unique(purchase)
-
-# Let's see how many of each we have
-
-nl1 = sum(purchase .== vals[1])
-nl2 = sum(purchase .== vals[2])
-println("#$(vals[1]) ", nl1)
-println("#$(vals[2]) ", nl2)
-
-# we can also visualise this as was done before:
-
-begin
-    cm = countmap(purchase)
-    categories, vals = collect(keys(cm)), collect(values(cm))
-    bar(categories, vals, title="Bar Chart Example", legend=false)
-    ylabel!("Number of occurrences")
-end
-# that's quite unbalanced.
-#
-# Apart from the target, all other variables are numbers; we can standardize the data:
-
-y, X = unpack(caravan, ==(:Purchase))
-
-mstd = machine(Standardizer(), X)
-fit!(mstd)
-Xs = MLJ.transform(mstd, X)
-
-var(Xs[:, 1]) |> r3
-
-@df Xs density([:MAANTHUI])
-
-# **Note**: in MLJ, it is recommended to work with pipelines / networks when possible and not do "step-by-step" transformation and fitting of the data as this is more error prone. We do it here to stick to the ISL tutorial.
-#
-# We split the data in the first 1000 rows for testing and the rest for training:
-
-test = 1:1000
-train = last(test)+1:nrows(Xs);
-
-# Let's now fit a KNN model and check the misclassification rate
-
-classif = machine(KNNClassifier(K=3), Xs, y)
-fit!(classif, rows=train)
-ŷ = predict_mode(classif, rows=test)
-
-bacc(ŷ, y[test]) |> r3
-
-# that looks good but recall that the problem is very unbalanced
-
-mean(y[test] .!= "No") |> r3
-
-# Let's fit a logistic classifier to this problem
-
-classif = machine(LogisticClassifier(), Xs, y)
-fit!(classif, rows=train)
-ŷ = predict_mode(classif, rows=test)
-
-bacc(ŷ, y[test]) |> r3
-
-
-# ### ROC and AUC
-
-# Since we have a probabilistic classifier, we can also check metrics that take _scores_ into account such as the area under the ROC curve (AUC):
-
-ŷ = MLJ.predict(classif, rows=test)
-
-auc(ŷ, y[test])
-
-# We can also display the curve itself
-
-fprs, tprs, thresholds = roc_curve(ŷ, y[test])
-
-begin
-    plot(fprs, tprs, linewidth=2, size=(600, 600))
-    xlabel!("False Positive Rate")
-    ylabel!("True Positive Rate")
-end
