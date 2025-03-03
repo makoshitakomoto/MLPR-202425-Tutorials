@@ -2,7 +2,6 @@
 
 using MLJ
 import RDatasets: dataset
-using PrettyPrinting
 import DataFrames: DataFrame, select, Not
 
 carseats = dataset("ISLR", "Carseats")
@@ -33,9 +32,6 @@ mdl = HotTreeClf
 mach = machine(mdl, train_validate_X, train_validate_y)
 fit!(mach)
 
-cv = StratifiedCV(nfolds=10; rng=112)
-# performance_without_tuning = evaluate!(mach; resampling=cv, measures=[mcc, fpr, fnr, misclassification_rate], verbosity=0)
-
 # Note `|>` is syntactic sugar for creating a `Pipeline` model from component model instances or model types.
 # Note also that the machine `mach` is trained on the whole data.
 ypred = predict_mode(mach, train_validate_X)
@@ -46,8 +42,11 @@ accuracy(ypred, train_validate_y)
 # Let's see if it generalises:
 
 ypred = predict_mode(mach, hold_out_test_X)
-perf_dt = misclassification_rate(ypred, hold_out_test_y)
-mcc_dt = mcc(ypred, hold_out_test_y)
+misclassification_rate_dt = misclassification_rate(ypred, hold_out_test_y)
+accuracy_dt = accuracy(ypred, hold_out_test_y)
+
+cv = StratifiedCV(nfolds=10; shuffle=false, rng=112)
+performance_without_tuning = evaluate!(mach; resampling=cv, measures=[accuracy, fpr, fnr, misclassification_rate], verbosity=1)
 
 # ### Tuning a DTC
 # Let's try to do a bit of tuning
@@ -58,29 +57,39 @@ r_msl = range(mdl, :(decision_tree_classifier.min_samples_leaf), lower=1, upper=
 HotTreeClf = OneHotEncoder() |> DTC()
 mdl = HotTreeClf
 
-cv = StratifiedCV(nfolds=10; rng=112)
 tm = TunedModel(
     model=mdl,
     ranges=[r_mpi, r_msl],
     tuning=Grid(resolution=10),
     resampling=cv,
     operation=predict_mode,
-    measure=mcc,
+    measure=accuracy,
 )
+
 mtm = machine(tm, train_validate_X, train_validate_y)
 fit!(mtm)
-# performance_upon_tuning = evaluate!(mtm, resampling=cv, measures=[mcc, fpr, fnr, misclassification_rate], verbosity=0)
+
+rep = report(mtm)
+rep.best_model
 
 ypred = predict_mode(mtm, hold_out_test_X)
-perf_tuned_dt = misclassification_rate(ypred, hold_out_test_y)
-mcc_tuned_dt = mcc(ypred, hold_out_test_y)
+misclassification_rate_tuned_dt = misclassification_rate(ypred, hold_out_test_y)
+accuracy_tuned_dt = accuracy(ypred, hold_out_test_y)
 
-@show perf_dt, perf_tuned_dt
-@show mcc_dt, mcc_tuned_dt
+@show misclassification_rate_dt, misclassification_rate_tuned_dt
+@show accuracy_dt, accuracy_tuned_dt
+
+performance_upon_tuning = evaluate!(mtm, resampling=cv, measures=[accuracy, fpr, fnr, misclassification_rate], verbosity=0)
 
 # We can inspect the parameters of the best model
 
 fitted_params(mtm).best_model.decision_tree_classifier
+
+# Further tuning the DT still has not resulted in better generalization, it still overfits. So, Let's try another model.
+
+#However looking at the evaluation report of the tuned and the untuned model, we also notice the standard deviation of the accuracy is higher for the tuned model. This tells us that our CV methodology already indicated to us that the DT is not going to generalize well. A higher standard deviation of the accuracy means that on the new data we can have large deviations in accuracy.
+
+#------------------------------------------------------------
 
 @show models("CatBoost")
 
@@ -102,6 +111,7 @@ measures("f1")
 # Using CatBoost
 
 using CatBoost.MLJCatBoostInterface
+
 CB = @load CatBoostClassifier pkg = CatBoost
 
 # scitype(train_validate_X)
@@ -110,8 +120,10 @@ cb = machine(cb_mdl, train_validate_X, train_validate_y)
 fit!(cb)
 
 ypred = MLJ.predict_mode(cb, hold_out_test_X)
-perf_cb = misclassification_rate(ypred, hold_out_test_y)
-mcc_cb = mcc(ypred, hold_out_test_y)
+misclassification_rate_cb = misclassification_rate(ypred, hold_out_test_y)
+accuracy_cb = accuracy(ypred, hold_out_test_y)
 
-@show perf_dt, perf_tuned_dt, perf_cb
-@show mcc_dt, mcc_tuned_dt, mcc_cb
+@show misclassification_rate_dt, misclassification_rate_tuned_dt, misclassification_rate_cb
+@show accuracy_dt, accuracy_tuned_dt, accuracy_cb
+
+#HW #TODO - Find which model for your carseats data is best. Given that the model is also probabilistic and written in pure julia.
