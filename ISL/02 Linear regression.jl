@@ -28,6 +28,7 @@ LR = @load LinearRegressor pkg = MLJLinearModels
 
 import RDatasets: dataset
 import DataFrames: describe, select, Not, rename!
+using Data
 data = dataset("MASS", "Boston")
 println(first(data, 3))
 
@@ -127,7 +128,7 @@ round(rsquared(ŷ, y), sigdigits=4)
 #
 # Let's get back to the lab where they consider regressing the target variable on `lstat` and `lstat^2`; again, it's essentially a case of defining the right DataFrame:
 
-X3 = DataFrame(hcat(X.LStat, X.LStat .^ 2), [:LStat, :LStat2])
+X3 = DataFrames(hcat(X.LStat, X.LStat .^ 2), [:LStat, :LStat2])
 mach = machine(model, X3, y)
 fit!(mach)
 ŷ = MLJ.predict(mach, X3)
