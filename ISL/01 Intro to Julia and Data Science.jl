@@ -64,6 +64,7 @@ end
 using Statistics: mean, std
 import StatsBase as SB
 using Statistics
+using StatsBase
 # Note that if you don't have `StatsBase`, you can add it using `using Pkg; Pkg.add("StatsBase")`.
 # Right, let's now compute some simple statistics:
 using Random
@@ -110,7 +111,7 @@ using RDatasets
 
 using DataFrames
 
-auto = dataset("ISLR", "Auto")
+auto_df = dataset("ISLR", "Auto")
 auto = Matrix(auto_df)
 # To get dimensions you can use `size` and `nrow` and `ncol`
 
